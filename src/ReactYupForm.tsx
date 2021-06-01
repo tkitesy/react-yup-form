@@ -1,97 +1,59 @@
+import _ from "lodash";
 import * as React from "react";
-import * as yup from "yup";
+import { ValidationError } from "yup";
+import { ReactYupContext, ReactYupFormProps } from "./share";
+import { YupField } from "./YupField";
 
-interface ReactYupFormProps<T> {
-  schema: yup.SchemaOf<T>;
-  values: T;
-  onSubmit: (values: T) => void;
-}
+export function ReactYupForm<T = any>({
+  schema,
+  value,
+  onChange,
+}: ReactYupFormProps<T>) {
+  const [errors, setErrors] = React.useState<ValidationError>(null);
+  React.useEffect(() => {
+    schema
+      .validate(value, { abortEarly: false })
+      .catch((e: ValidationError) => {
+        setErrors(e);
+      });
+  }, [schema, value]);
 
-interface FieldProps<T = any> {
-  schema: yup.SchemaOf<T>;
-  path: string;
-  parentPath: string[];
-}
-
-function StringField({ schema, path }: FieldProps<string>) {
-  const descriptor = schema.describe();
-  return (
-    <div>
-      <label>
-        {descriptor.label}({path})
-      </label>
-      <input />
-    </div>
-  );
-}
-
-function NumberField({ schema, path }: FieldProps<number>) {
-  const descriptor = schema.describe();
-  return (
-    <div>
-      <label>
-        {descriptor.label}({path})
-      </label>
-      <input />
-    </div>
-  );
-}
-
-function ObjectField({ schema, path, parentPath }: FieldProps<object>) {
-  const descriptor = schema.describe();
-  return (
-    <div>
-      {descriptor.label}({path})
-      <ul>
-        {Object.entries(schema.fields).map(([k, sch]) => (
-          <li>
-            <YupField
-              parentPath={[...parentPath, path]}
-              path={k}
-              schema={sch}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ArrayField({ schema, path }: FieldProps<any[]>) {
-  return <div>ArrayField</div>;
-}
-
-function YupField({ schema, path, parentPath }: FieldProps) {
-  const descriptor = schema.describe();
-  switch (descriptor.type) {
-    case "string":
-      return (
-        <StringField
-          path={path}
-          parentPath={parentPath}
-          schema={schema as any}
-        />
-      );
-    case "object":
-      return (
-        <ObjectField
-          path={path}
-          parentPath={parentPath}
-          schema={schema as any}
-        />
-      );
-    case "number":
-      return (
-        <NumberField
-          path={path}
-          parentPath={parentPath}
-          schema={schema as any}
-        />
-      );
+  function changeValues(fullPath: string[], v: any) {
+    onChange(_(value).set(fullPath, v).cloneDeep());
   }
-  return null;
-}
+  function getErrors(fullPath: string[]): string[] {
+    if (fullPath.length === 0 || errors === null) {
+      return [];
+    }
+    let name = "";
+    for (let p of fullPath) {
+      if (/^\d+$/.test(p)) {
+        name = name + `[${p}]`;
+      } else {
+        name = name + "." + p;
+      }
+    }
+    name = name.startsWith(".") ? name.slice(1) : name;
+    if(name === "") {
+      return errors.errors
+    }
+    for (let err of errors.inner) {
+      if (err.path === name) {
+        return err.errors;
+      }
+    }
+    return [];
+  }
 
-export function ReactYupForm<T = any>({ schema }: ReactYupFormProps<T>) {
-  return <YupField schema={schema} path="" parentPath={[]} />;
+  return (
+    <ReactYupContext.Provider value={{ changeValues, values: value, getErrors }}>
+      <YupField
+        value={value}
+        onChange={onChange}
+        schema={schema}
+        path=""
+        parentPath={[]}
+      />
+    </ReactYupContext.Provider>
+  );
 }

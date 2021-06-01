@@ -5,13 +5,14 @@
   "author": "tkitesy",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \" npm run watch \" \" npm run storybook \" ",
+    "dev": "npm run watch && npm run storybook",
     "prebuild": "rm -rf dist",
     "build": "rollup -c",
     "watch": "rollup -c -w",
     "storybook": "start-storybook -p 6006"
   },
   "dependencies": {
+    "lodash": "^4.17.21",
     "yup": "^0.32.9"
   },
   "peerDependencies": {
